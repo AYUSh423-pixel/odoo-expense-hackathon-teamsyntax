@@ -31,7 +31,8 @@ function requireRole($roles = []) {
 
 function requireLogin() {
     if (!currentUser()) {
-        header('Location: /Expense_management/public/index.php');
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required']);
         exit;
     }
 }

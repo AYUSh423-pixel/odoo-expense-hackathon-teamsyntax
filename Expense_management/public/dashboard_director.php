@@ -7,7 +7,7 @@ require_once '../includes/auth.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Dashboard - Expense Manager</title>
+    <title>Director Dashboard - Expense Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -35,12 +35,12 @@ require_once '../includes/auth.php';
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h2 class="text-3xl font-bold text-gray-900">Manager Dashboard</h2>
-            <p class="text-gray-600 mt-2">Review and approve expense claims</p>
+            <h2 class="text-3xl font-bold text-gray-900">Director Dashboard</h2>
+            <p class="text-gray-600 mt-2">Executive oversight and final approvals</p>
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -55,22 +55,33 @@ require_once '../includes/auth.php';
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+                        <i class="fas fa-chart-bar text-blue-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Approved Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="approvedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">Monthly Expenses</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="monthlyExpenses">-</p>
                     </div>
                 </div>
             </div>
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                        <i class="fas fa-users text-green-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Rejected Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="rejectedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">Active Users</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="activeUsers">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">High Value Items</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="highValueItems">-</p>
                     </div>
                 </div>
             </div>
@@ -84,12 +95,15 @@ require_once '../includes/auth.php';
             <button onclick="loadAllExpenses()" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center">
                 <i class="fas fa-list mr-2"></i>View All Expenses
             </button>
+            <button onclick="loadReports()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition duration-200 flex items-center">
+                <i class="fas fa-chart-pie mr-2"></i>Generate Reports
+            </button>
         </div>
 
         <!-- Pending Approvals -->
         <div class="bg-white rounded-lg shadow">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">Pending Approvals</h3>
+                <h3 class="text-lg font-medium text-gray-900">Pending Director Approvals</h3>
             </div>
             <div id="pendingApprovalsList" class="divide-y divide-gray-200">
                 <div class="p-6 text-center text-gray-500">
@@ -108,6 +122,33 @@ require_once '../includes/auth.php';
                 <div class="p-6 text-center text-gray-500">
                     <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                     <p>Loading expenses...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Section (Hidden by default) -->
+        <div id="reportsSection" class="hidden mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Executive Reports</h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Expense Trends</h4>
+                        <p class="text-sm text-gray-600">Monthly expense analysis and trends</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Department Breakdown</h4>
+                        <p class="text-sm text-gray-600">Expenses by department and category</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Approval Efficiency</h4>
+                        <p class="text-sm text-gray-600">Approval times and bottlenecks</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Budget Analysis</h4>
+                        <p class="text-sm text-gray-600">Budget vs actual spending</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -338,6 +379,11 @@ require_once '../includes/auth.php';
             `).join('');
         }
 
+        // Load reports
+        function loadReports() {
+            document.getElementById('reportsSection').classList.remove('hidden');
+        }
+
         // Get status color
         function getStatusColor(status) {
             switch (status) {
@@ -351,13 +397,9 @@ require_once '../includes/auth.php';
         // Update stats
         function updateStats(approvals) {
             document.getElementById('pendingCount').textContent = approvals.length;
-            
-            // Calculate today's stats (simplified)
-            const today = new Date().toDateString();
-            const todayApprovals = approvals.filter(a => new Date(a.created_at).toDateString() === today);
-            
-            document.getElementById('approvedToday').textContent = '0'; // Would need separate API call
-            document.getElementById('rejectedToday').textContent = '0'; // Would need separate API call
+            document.getElementById('monthlyExpenses').textContent = '$0.00'; // Placeholder
+            document.getElementById('activeUsers').textContent = '0'; // Placeholder
+            document.getElementById('highValueItems').textContent = '0'; // Placeholder
         }
 
         // Open approval modal
@@ -410,6 +452,13 @@ require_once '../includes/auth.php';
                     })
                 });
                 
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP Error:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -424,6 +473,7 @@ require_once '../includes/auth.php';
                     throw new Error(data.error || 'Failed to approve expense');
                 }
             } catch (error) {
+                console.error('Approval error:', error);
                 showError('Failed to approve expense: ' + error.message);
             }
         }

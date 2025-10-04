@@ -8,5 +8,8 @@ try {
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
 } catch(PDOException $e) {
-    die("DB Connection failed: " . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
+    exit;
 }

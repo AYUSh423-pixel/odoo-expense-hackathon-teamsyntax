@@ -7,7 +7,7 @@ require_once '../includes/auth.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Dashboard - Expense Manager</title>
+    <title>CFO Dashboard - Expense Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -35,42 +35,53 @@ require_once '../includes/auth.php';
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h2 class="text-3xl font-bold text-gray-900">Manager Dashboard</h2>
-            <p class="text-gray-600 mt-2">Review and approve expense claims</p>
+            <h2 class="text-3xl font-bold text-gray-900">CFO Dashboard</h2>
+            <p class="text-gray-600 mt-2">Financial oversight and expense management</p>
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-dollar-sign text-green-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Approved</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="totalApproved">-</p>
+                    </div>
+                </div>
+            </div>
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
                         <i class="fas fa-clock text-yellow-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Pending Approvals</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="pendingCount">-</p>
+                        <p class="text-sm font-medium text-gray-500">Pending Approval</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="pendingAmount">-</p>
                     </div>
                 </div>
             </div>
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+                        <i class="fas fa-chart-line text-blue-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Approved Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="approvedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">Monthly Average</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="monthlyAverage">-</p>
                     </div>
                 </div>
             </div>
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Rejected Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="rejectedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">High Value Claims</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="highValueClaims">-</p>
                     </div>
                 </div>
             </div>
@@ -83,6 +94,15 @@ require_once '../includes/auth.php';
             </button>
             <button onclick="loadAllExpenses()" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center">
                 <i class="fas fa-list mr-2"></i>View All Expenses
+            </button>
+            <button onclick="loadFinancialReports()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition duration-200 flex items-center">
+                <i class="fas fa-chart-bar mr-2"></i>Financial Reports
+            </button>
+            <button onclick="loadCategoryBreakdown()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition duration-200 flex items-center">
+                <i class="fas fa-pie-chart mr-2"></i>Category Breakdown
+            </button>
+            <button onclick="loadHighValueExpenses()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition duration-200 flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>High Value Expenses
             </button>
         </div>
 
@@ -108,6 +128,45 @@ require_once '../includes/auth.php';
                 <div class="p-6 text-center text-gray-500">
                     <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                     <p>Loading expenses...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Reports (Hidden by default) -->
+        <div id="financialReportsSection" class="hidden mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Financial Reports</h3>
+            </div>
+            <div id="financialReportsList" class="divide-y divide-gray-200">
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading financial reports...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Breakdown (Hidden by default) -->
+        <div id="categoryBreakdownSection" class="hidden mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Category Breakdown</h3>
+            </div>
+            <div id="categoryBreakdownList" class="divide-y divide-gray-200">
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading category breakdown...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- High Value Expenses (Hidden by default) -->
+        <div id="highValueExpensesSection" class="hidden mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">High Value Expenses</h3>
+            </div>
+            <div id="highValueExpensesList" class="divide-y divide-gray-200">
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading high value expenses...</p>
                 </div>
             </div>
         </div>
@@ -338,6 +397,196 @@ require_once '../includes/auth.php';
             `).join('');
         }
 
+        // Load financial reports
+        async function loadFinancialReports() {
+            try {
+                const response = await fetch('/Expense_management/api/stats.php?action=financial_reports');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayFinancialReports(data.reports);
+                    document.getElementById('financialReportsSection').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load financial reports');
+                }
+            } catch (error) {
+                showError('Failed to load financial reports: ' + error.message);
+            }
+        }
+
+        // Display financial reports
+        function displayFinancialReports(reports) {
+            const container = document.getElementById('financialReportsList');
+            
+            if (reports.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-chart-bar text-4xl mb-4"></i>
+                        <p class="text-lg">No financial data found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = reports.map(report => `
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-calendar text-blue-500 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900">${report.period}</h4>
+                                    <p class="text-sm text-gray-600">${report.total_expenses} expenses</p>
+                                    <p class="text-xs text-gray-500">
+                                        ${report.approved_expenses} approved, ${report.pending_expenses} pending
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold text-gray-900">
+                                ${report.company_currency} ${parseFloat(report.total_amount).toFixed(2)}
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                Avg: ${report.company_currency} ${parseFloat(report.avg_amount).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load category breakdown
+        async function loadCategoryBreakdown() {
+            try {
+                const response = await fetch('/Expense_management/api/stats.php?action=category_breakdown');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayCategoryBreakdown(data.categories);
+                    document.getElementById('categoryBreakdownSection').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load category breakdown');
+                }
+            } catch (error) {
+                showError('Failed to load category breakdown: ' + error.message);
+            }
+        }
+
+        // Display category breakdown
+        function displayCategoryBreakdown(categories) {
+            const container = document.getElementById('categoryBreakdownList');
+            
+            if (categories.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-pie-chart text-4xl mb-4"></i>
+                        <p class="text-lg">No category data found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = categories.map(category => `
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-tag text-purple-500 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900">${category.category}</h4>
+                                    <p class="text-sm text-gray-600">${category.count} expenses</p>
+                                    <p class="text-xs text-gray-500">
+                                        ${category.percentage}% of total
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold text-gray-900">
+                                ${category.company_currency} ${parseFloat(category.total_amount).toFixed(2)}
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                Avg: ${category.company_currency} ${parseFloat(category.avg_amount).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load high value expenses
+        async function loadHighValueExpenses() {
+            try {
+                const response = await fetch('/Expense_management/api/stats.php?action=high_value_expenses');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayHighValueExpenses(data.expenses);
+                    document.getElementById('highValueExpensesSection').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load high value expenses');
+                }
+            } catch (error) {
+                showError('Failed to load high value expenses: ' + error.message);
+            }
+        }
+
+        // Display high value expenses
+        function displayHighValueExpenses(expenses) {
+            const container = document.getElementById('highValueExpensesList');
+            
+            if (expenses.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p class="text-lg">No high value expenses found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = expenses.map(expense => `
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(expense.status)}">
+                                        ${expense.status}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900">${expense.category}</h4>
+                                    <p class="text-sm text-gray-600">${expense.description || 'No description'}</p>
+                                    <p class="text-xs text-gray-500">
+                                        Submitted by ${expense.user_name} on ${new Date(expense.created_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold text-gray-900">
+                                ${expense.original_currency} ${parseFloat(expense.original_amount).toFixed(2)}
+                            </div>
+                            ${expense.company_currency !== expense.original_currency ? 
+                                `<div class="text-sm text-gray-600">
+                                    ≈ ${expense.company_currency} ${parseFloat(expense.company_amount).toFixed(2)}
+                                </div>` : ''
+                            }
+                            <div class="text-xs text-gray-500">
+                                ${expense.approved_count}/${expense.total_approvals} approvals
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Get status color
         function getStatusColor(status) {
             switch (status) {
@@ -350,14 +599,27 @@ require_once '../includes/auth.php';
 
         // Update stats
         function updateStats(approvals) {
-            document.getElementById('pendingCount').textContent = approvals.length;
+            // Calculate totals
+            let totalApproved = 0;
+            let pendingAmount = 0;
+            let highValueCount = 0;
             
-            // Calculate today's stats (simplified)
-            const today = new Date().toDateString();
-            const todayApprovals = approvals.filter(a => new Date(a.created_at).toDateString() === today);
+            approvals.forEach(approval => {
+                const amount = parseFloat(approval.company_amount || approval.original_amount);
+                if (approval.status === 'Approved') {
+                    totalApproved += amount;
+                } else if (approval.status === 'Pending') {
+                    pendingAmount += amount;
+                }
+                if (amount > 1000) { // High value threshold
+                    highValueCount++;
+                }
+            });
             
-            document.getElementById('approvedToday').textContent = '0'; // Would need separate API call
-            document.getElementById('rejectedToday').textContent = '0'; // Would need separate API call
+            document.getElementById('totalApproved').textContent = `$${totalApproved.toFixed(2)}`;
+            document.getElementById('pendingAmount').textContent = `$${pendingAmount.toFixed(2)}`;
+            document.getElementById('highValueClaims').textContent = highValueCount;
+            document.getElementById('monthlyAverage').textContent = 'N/A'; // Would need separate calculation
         }
 
         // Open approval modal
@@ -410,6 +672,13 @@ require_once '../includes/auth.php';
                     })
                 });
                 
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP Error:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -424,6 +693,7 @@ require_once '../includes/auth.php';
                     throw new Error(data.error || 'Failed to approve expense');
                 }
             } catch (error) {
+                console.error('Approval error:', error);
                 showError('Failed to approve expense: ' + error.message);
             }
         }
@@ -451,6 +721,13 @@ require_once '../includes/auth.php';
                     })
                 });
                 
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP Error:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.success) {
@@ -465,6 +742,7 @@ require_once '../includes/auth.php';
                     throw new Error(data.error || 'Failed to reject expense');
                 }
             } catch (error) {
+                console.error('Rejection error:', error);
                 showError('Failed to reject expense: ' + error.message);
             }
         }

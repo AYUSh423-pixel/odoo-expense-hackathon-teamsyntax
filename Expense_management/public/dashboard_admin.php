@@ -98,6 +98,9 @@ require_once '../includes/auth.php';
             <button onclick="showWorkflowSettings()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition duration-200 flex items-center">
                 <i class="fas fa-cogs mr-2"></i>Workflow Settings
             </button>
+            <button onclick="setupDefaultApprovals()" class="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition duration-200 flex items-center">
+                <i class="fas fa-magic mr-2"></i>Setup Default Approvals
+            </button>
             <button onclick="loadDashboard()" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center">
                 <i class="fas fa-refresh mr-2"></i>Refresh
             </button>
@@ -190,6 +193,8 @@ require_once '../includes/auth.php';
                             <option value="Manager">Manager</option>
                             <option value="Finance">Finance</option>
                             <option value="Director">Director</option>
+                            <option value="HR">HR</option>
+                            <option value="CFO">CFO</option>
                         </select>
                     </div>
                     
@@ -406,12 +411,26 @@ require_once '../includes/auth.php';
 
         // Load stats
         async function loadStats() {
-            // This would normally call a stats API
-            // For now, we'll use placeholder values
-            document.getElementById('totalUsers').textContent = '0';
-            document.getElementById('totalExpenses').textContent = '0';
-            document.getElementById('pendingApprovals').textContent = '0';
-            document.getElementById('totalAmount').textContent = '$0.00';
+            try {
+                const response = await fetch('/Expense_management/api/stats.php');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('totalUsers').textContent = data.stats.total_users;
+                    document.getElementById('totalExpenses').textContent = data.stats.total_expenses;
+                    document.getElementById('pendingApprovals').textContent = data.stats.pending_approvals;
+                    document.getElementById('totalAmount').textContent = data.company_currency + ' ' + parseFloat(data.stats.total_amount).toFixed(2);
+                } else {
+                    throw new Error(data.error || 'Failed to load stats');
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                // Keep default values
+                document.getElementById('totalUsers').textContent = '0';
+                document.getElementById('totalExpenses').textContent = '0';
+                document.getElementById('pendingApprovals').textContent = '0';
+                document.getElementById('totalAmount').textContent = '$0.00';
+            }
         }
 
         // Get role color
@@ -421,6 +440,8 @@ require_once '../includes/auth.php';
                 case 'Manager': return 'bg-blue-100 text-blue-800';
                 case 'Finance': return 'bg-green-100 text-green-800';
                 case 'Director': return 'bg-yellow-100 text-yellow-800';
+                case 'HR': return 'bg-pink-100 text-pink-800';
+                case 'CFO': return 'bg-indigo-100 text-indigo-800';
                 case 'Employee': return 'bg-gray-100 text-gray-800';
                 default: return 'bg-gray-100 text-gray-800';
             }
@@ -468,13 +489,19 @@ require_once '../includes/auth.php';
         function closeAddUserModal() {
             document.getElementById('addUserModal').classList.add('hidden');
             document.getElementById('addUserForm').reset();
+            
+            // Reset form to create mode
+            document.querySelector('#addUserModal h3').textContent = 'Add New User';
+            const submitBtn = document.querySelector('#addUserModal button[type="submit"]');
+            submitBtn.textContent = 'Add User';
+            submitBtn.removeAttribute('data-user-id');
         }
 
         function populateManagerSelect(users) {
             const select = document.getElementById('userManager');
             select.innerHTML = '<option value="">Select Manager</option>';
             
-            users.filter(user => ['Manager', 'Admin'].includes(user.role)).forEach(user => {
+            users.filter(user => ['Manager', 'Admin', 'HR', 'CFO'].includes(user.role)).forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.id;
                 option.textContent = user.name;
@@ -488,9 +515,16 @@ require_once '../includes/auth.php';
             
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const isEdit = submitBtn.hasAttribute('data-user-id');
             
             try {
-                const response = await fetch('/Expense_management/api/users.php?action=create', {
+                const action = isEdit ? 'update' : 'create';
+                if (isEdit) {
+                    data.user_id = submitBtn.getAttribute('data-user-id');
+                }
+                
+                const response = await fetch(`/Expense_management/api/users.php?action=${action}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -501,16 +535,68 @@ require_once '../includes/auth.php';
                 const result = await response.json();
                 
                 if (result.success) {
-                    showSuccess('User created successfully!');
+                    showSuccess(`User ${isEdit ? 'updated' : 'created'} successfully!`);
                     closeAddUserModal();
                     loadUsers();
                 } else {
-                    throw new Error(result.error || 'Failed to create user');
+                    throw new Error(result.error || `Failed to ${isEdit ? 'update' : 'create'} user`);
                 }
             } catch (error) {
-                showError('Failed to create user: ' + error.message);
+                showError(`Failed to ${isEdit ? 'update' : 'create'} user: ` + error.message);
             }
         });
+
+        // Edit user
+        function editUser(userId) {
+            // Find user data
+            const userElement = document.querySelector(`[onclick*="editUser(${userId})"]`).closest('.p-6');
+            const name = userElement.querySelector('h4').textContent;
+            const email = userElement.querySelector('p.text-sm').textContent;
+            const role = userElement.querySelector('.inline-flex').textContent.trim();
+            
+            // Pre-fill the add user form
+            document.getElementById('userName').value = name;
+            document.getElementById('userEmail').value = email;
+            document.getElementById('userRole').value = role;
+            
+            // Show the modal
+            document.getElementById('addUserModal').classList.remove('hidden');
+            
+            // Change form to edit mode
+            document.querySelector('#addUserModal h3').textContent = 'Edit User';
+            document.querySelector('#addUserModal button[type="submit"]').textContent = 'Update User';
+            document.querySelector('#addUserModal button[type="submit"]').setAttribute('data-user-id', userId);
+        }
+
+        // Delete user
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/Expense_management/api/users.php?action=delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('User deleted successfully!');
+                    loadUsers();
+                } else {
+                    throw new Error(data.error || 'Failed to delete user');
+                }
+            } catch (error) {
+                showError('Failed to delete user: ' + error.message);
+            }
+        }
 
         // Override expense
         async function overrideExpense(expenseId, status) {
@@ -559,6 +645,32 @@ require_once '../includes/auth.php';
             setTimeout(() => {
                 document.getElementById('successAlert').classList.add('hidden');
             }, 5000);
+        }
+
+        // Setup default approvals
+        async function setupDefaultApprovals() {
+            if (!confirm('This will setup a default approval workflow with Manager → HR → Finance → CFO → Director. Continue?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/Expense_management/api/setup_approvals.php?action=setup_default', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess('Default approval workflow setup successfully! CFO and HR users will now see pending approvals.');
+                } else {
+                    throw new Error(data.error || 'Failed to setup default approvals');
+                }
+            } catch (error) {
+                showError('Failed to setup default approvals: ' + error.message);
+            }
         }
 
         // Logout

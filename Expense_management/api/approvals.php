@@ -1,8 +1,16 @@
 <?php
+// Suppress any output that might interfere with JSON
+ob_start();
+error_reporting(0);
+ini_set('display_errors', 0);
+
 header('Content-Type: application/json');
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/utils.php';
+
+// Clean any output buffer
+ob_clean();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
@@ -41,6 +49,15 @@ switch ($action) {
     case 'override':
         if ($method === 'POST') {
             handleOverride();
+        } else {
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+        }
+        break;
+        
+    case 'debug':
+        if ($method === 'GET') {
+            handleDebug();
         } else {
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
@@ -90,13 +107,15 @@ function handleApprove() {
         $stmt->execute([$comments, $approval['id']]);
         
         // Evaluate approval rules
-        evaluateApprovalRules($pdo, $expense_id);
+        evaluateAdvancedApprovalRules($pdo, $expense_id);
         
         $pdo->commit();
         
         echo json_encode([
             'success' => true,
-            'message' => 'Expense approved successfully'
+            'message' => 'Expense approved successfully',
+            'expense_id' => $expense_id,
+            'approval_status' => $status
         ]);
         
     } catch (PDOException $e) {
@@ -365,5 +384,197 @@ function evaluateApprovalRules($pdo, $expense_id) {
                 $stmt->execute([$expense_id]);
             }
         }
+    }
+}
+
+function handleDebug() {
+    global $pdo;
+    
+    $user = currentUser();
+    
+    try {
+        // Get user info
+        $user_info = [
+            'id' => $user['id'],
+            'role' => $user['role'],
+            'company_id' => $user['company_id'],
+            'name' => $user['name']
+        ];
+        
+        // Get pending approvals for this user
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM approvals a 
+                              JOIN expenses e ON a.expense_id = e.id 
+                              WHERE a.approver_id = ? AND a.status = 'Pending' AND e.company_id = ?");
+        $stmt->execute([$user['id'], $user['company_id']]);
+        $pending_count = $stmt->fetchColumn();
+        
+        echo json_encode([
+            'success' => true,
+            'user' => $user_info,
+            'pending_approvals' => $pending_count,
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+        
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+}
+
+function evaluateAdvancedApprovalRules($pdo, $expense_id) {
+    // Get company approval rules
+    $stmt = $pdo->prepare("SELECT ar.*, e.company_id FROM approval_rules ar 
+                          JOIN expenses e ON ar.company_id = e.company_id 
+                          WHERE e.id = ?");
+    $stmt->execute([$expense_id]);
+    $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$rule) {
+        // No rules defined, use simple logic
+        evaluateSimpleApprovalRules($pdo, $expense_id);
+        return;
+    }
+    
+    // Get all approvals for this expense
+    $stmt = $pdo->prepare("SELECT * FROM approvals WHERE expense_id = ? ORDER BY step_order");
+    $stmt->execute([$expense_id]);
+    $approvals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Check if any approval is rejected
+    foreach ($approvals as $approval) {
+        if ($approval['status'] === 'Rejected') {
+            $stmt = $pdo->prepare("UPDATE expenses SET status = 'Rejected' WHERE id = ?");
+            $stmt->execute([$expense_id]);
+            
+            // Skip remaining approvals
+            $stmt = $pdo->prepare("UPDATE approvals SET status = 'Skipped' WHERE expense_id = ? AND status = 'Pending'");
+            $stmt->execute([$expense_id]);
+            return;
+        }
+    }
+    
+    // Apply specific rule logic
+    switch ($rule['rule_type']) {
+        case 'Specific':
+            evaluateSpecificApproverRule($pdo, $expense_id, $rule, $approvals);
+            break;
+            
+        case 'Percentage':
+            evaluatePercentageRule($pdo, $expense_id, $rule, $approvals);
+            break;
+            
+        case 'Hybrid':
+            evaluateHybridRule($pdo, $expense_id, $rule, $approvals);
+            break;
+            
+        default:
+            evaluateSimpleApprovalRules($pdo, $expense_id);
+    }
+}
+
+function evaluateSpecificApproverRule($pdo, $expense_id, $rule, $approvals) {
+    if (!$rule['specific_approver_id']) {
+        evaluateSimpleApprovalRules($pdo, $expense_id);
+        return;
+    }
+    
+    // Check if specific approver has approved
+    foreach ($approvals as $approval) {
+        if ($approval['approver_id'] == $rule['specific_approver_id'] && $approval['status'] === 'Approved') {
+            // Specific approver approved - approve entire expense
+            $stmt = $pdo->prepare("UPDATE expenses SET status = 'Approved' WHERE id = ?");
+            $stmt->execute([$expense_id]);
+            
+            // Skip remaining approvals
+            $stmt = $pdo->prepare("UPDATE approvals SET status = 'Skipped' WHERE expense_id = ? AND status = 'Pending'");
+            $stmt->execute([$expense_id]);
+            return;
+        }
+    }
+    
+    // Check if specific approver has rejected
+    foreach ($approvals as $approval) {
+        if ($approval['approver_id'] == $rule['specific_approver_id'] && $approval['status'] === 'Rejected') {
+            // Specific approver rejected - reject entire expense
+            $stmt = $pdo->prepare("UPDATE expenses SET status = 'Rejected' WHERE id = ?");
+            $stmt->execute([$expense_id]);
+            
+            // Skip remaining approvals
+            $stmt = $pdo->prepare("UPDATE approvals SET status = 'Skipped' WHERE expense_id = ? AND status = 'Pending'");
+            $stmt->execute([$expense_id]);
+            return;
+        }
+    }
+}
+
+function evaluatePercentageRule($pdo, $expense_id, $rule, $approvals) {
+    if (!$rule['threshold']) {
+        evaluateSimpleApprovalRules($pdo, $expense_id);
+        return;
+    }
+    
+    $total_approvals = count($approvals);
+    $approved_count = 0;
+    
+    foreach ($approvals as $approval) {
+        if ($approval['status'] === 'Approved') {
+            $approved_count++;
+        }
+    }
+    
+    $percentage = ($approved_count / $total_approvals) * 100;
+    
+    if ($percentage >= $rule['threshold']) {
+        // Threshold reached - approve entire expense
+        $stmt = $pdo->prepare("UPDATE expenses SET status = 'Approved' WHERE id = ?");
+        $stmt->execute([$expense_id]);
+        
+        // Skip remaining approvals
+        $stmt = $pdo->prepare("UPDATE approvals SET status = 'Skipped' WHERE expense_id = ? AND status = 'Pending'");
+        $stmt->execute([$expense_id]);
+    }
+}
+
+function evaluateHybridRule($pdo, $expense_id, $rule, $approvals) {
+    // Check specific approver first
+    if ($rule['specific_approver_id']) {
+        foreach ($approvals as $approval) {
+            if ($approval['approver_id'] == $rule['specific_approver_id'] && $approval['status'] === 'Approved') {
+                // Specific approver approved - approve entire expense
+                $stmt = $pdo->prepare("UPDATE expenses SET status = 'Approved' WHERE id = ?");
+                $stmt->execute([$expense_id]);
+                
+                // Skip remaining approvals
+                $stmt = $pdo->prepare("UPDATE approvals SET status = 'Skipped' WHERE expense_id = ? AND status = 'Pending'");
+                $stmt->execute([$expense_id]);
+                return;
+            }
+        }
+    }
+    
+    // Check percentage rule
+    if ($rule['threshold']) {
+        evaluatePercentageRule($pdo, $expense_id, $rule, $approvals);
+    }
+}
+
+function evaluateSimpleApprovalRules($pdo, $expense_id) {
+    // Simple logic: all approvals must be approved
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total, 
+                          SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved,
+                          SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected
+                          FROM approvals WHERE expense_id = ?");
+    $stmt->execute([$expense_id]);
+    $status = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // If any approval is rejected, reject the entire expense
+    if ($status['rejected'] > 0) {
+        $stmt = $pdo->prepare("UPDATE expenses SET status = 'Rejected' WHERE id = ?");
+        $stmt->execute([$expense_id]);
+    }
+    // If all approvals are approved, approve the entire expense
+    elseif ($status['approved'] == $status['total']) {
+        $stmt = $pdo->prepare("UPDATE expenses SET status = 'Approved' WHERE id = ?");
+        $stmt->execute([$expense_id]);
     }
 }

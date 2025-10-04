@@ -7,7 +7,7 @@ require_once '../includes/auth.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Dashboard - Expense Manager</title>
+    <title>Finance Dashboard - Expense Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -35,12 +35,12 @@ require_once '../includes/auth.php';
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h2 class="text-3xl font-bold text-gray-900">Manager Dashboard</h2>
-            <p class="text-gray-600 mt-2">Review and approve expense claims</p>
+            <h2 class="text-3xl font-bold text-gray-900">Finance Dashboard</h2>
+            <p class="text-gray-600 mt-2">Review and approve financial expenses</p>
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -66,11 +66,22 @@ require_once '../includes/auth.php';
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                        <i class="fas fa-dollar-sign text-blue-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Rejected Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="rejectedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">Total Amount</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="totalAmount">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-chart-line text-purple-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Monthly Budget</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="monthlyBudget">-</p>
                     </div>
                 </div>
             </div>
@@ -89,7 +100,7 @@ require_once '../includes/auth.php';
         <!-- Pending Approvals -->
         <div class="bg-white rounded-lg shadow">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900">Pending Approvals</h3>
+                <h3 class="text-lg font-medium text-gray-900">Pending Financial Approvals</h3>
             </div>
             <div id="pendingApprovalsList" class="divide-y divide-gray-200">
                 <div class="p-6 text-center text-gray-500">
@@ -357,7 +368,8 @@ require_once '../includes/auth.php';
             const todayApprovals = approvals.filter(a => new Date(a.created_at).toDateString() === today);
             
             document.getElementById('approvedToday').textContent = '0'; // Would need separate API call
-            document.getElementById('rejectedToday').textContent = '0'; // Would need separate API call
+            document.getElementById('totalAmount').textContent = '$0.00'; // Would need separate API call
+            document.getElementById('monthlyBudget').textContent = '$10,000'; // Placeholder
         }
 
         // Open approval modal
@@ -416,10 +428,6 @@ require_once '../includes/auth.php';
                     showSuccess('Expense approved successfully!');
                     closeApprovalModal();
                     loadPendingApprovals();
-                    // Also refresh all expenses if the section is visible
-                    if (!document.getElementById('allExpensesSection').classList.contains('hidden')) {
-                        loadAllExpenses();
-                    }
                 } else {
                     throw new Error(data.error || 'Failed to approve expense');
                 }
@@ -457,10 +465,6 @@ require_once '../includes/auth.php';
                     showSuccess('Expense rejected successfully!');
                     closeApprovalModal();
                     loadPendingApprovals();
-                    // Also refresh all expenses if the section is visible
-                    if (!document.getElementById('allExpensesSection').classList.contains('hidden')) {
-                        loadAllExpenses();
-                    }
                 } else {
                     throw new Error(data.error || 'Failed to reject expense');
                 }

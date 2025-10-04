@@ -98,6 +98,14 @@
                         window.location.href = 'dashboard_admin.php';
                     } else if (role === 'Manager') {
                         window.location.href = 'dashboard_manager.php';
+                    } else if (role === 'Finance') {
+                        window.location.href = 'dashboard_finance.php';
+                    } else if (role === 'Director') {
+                        window.location.href = 'dashboard_director.php';
+                    } else if (role === 'HR') {
+                        window.location.href = 'dashboard_hr.php';
+                    } else if (role === 'CFO') {
+                        window.location.href = 'dashboard_cfo.php';
                     } else {
                         window.location.href = 'dashboard_employee.php';
                     }

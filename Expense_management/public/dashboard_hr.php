@@ -7,7 +7,7 @@ require_once '../includes/auth.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Dashboard - Expense Manager</title>
+    <title>HR Dashboard - Expense Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -35,12 +35,12 @@ require_once '../includes/auth.php';
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
         <div class="mb-8">
-            <h2 class="text-3xl font-bold text-gray-900">Manager Dashboard</h2>
-            <p class="text-gray-600 mt-2">Review and approve expense claims</p>
+            <h2 class="text-3xl font-bold text-gray-900">HR Dashboard</h2>
+            <p class="text-gray-600 mt-2">Manage employee expenses and approvals</p>
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -66,11 +66,22 @@ require_once '../includes/auth.php';
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                        <i class="fas fa-users text-blue-500 text-2xl"></i>
                     </div>
                     <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Rejected Today</p>
-                        <p class="text-2xl font-semibold text-gray-900" id="rejectedToday">-</p>
+                        <p class="text-sm font-medium text-gray-500">Total Employees</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="totalEmployees">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-dollar-sign text-purple-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Expenses</p>
+                        <p class="text-2xl font-semibold text-gray-900" id="totalExpenses">-</p>
                     </div>
                 </div>
             </div>
@@ -83,6 +94,9 @@ require_once '../includes/auth.php';
             </button>
             <button onclick="loadAllExpenses()" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center">
                 <i class="fas fa-list mr-2"></i>View All Expenses
+            </button>
+            <button onclick="loadEmployeeStats()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition duration-200 flex items-center">
+                <i class="fas fa-chart-bar mr-2"></i>Employee Statistics
             </button>
         </div>
 
@@ -108,6 +122,19 @@ require_once '../includes/auth.php';
                 <div class="p-6 text-center text-gray-500">
                     <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                     <p>Loading expenses...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employee Statistics (Hidden by default) -->
+        <div id="employeeStatsSection" class="hidden mt-8 bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Employee Statistics</h3>
+            </div>
+            <div id="employeeStatsList" class="divide-y divide-gray-200">
+                <div class="p-6 text-center text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading employee statistics...</p>
                 </div>
             </div>
         </div>
@@ -338,6 +365,70 @@ require_once '../includes/auth.php';
             `).join('');
         }
 
+        // Load employee statistics
+        async function loadEmployeeStats() {
+            try {
+                const response = await fetch('/Expense_management/api/stats.php?action=employee_stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayEmployeeStats(data.stats);
+                    document.getElementById('employeeStatsSection').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load employee statistics');
+                }
+            } catch (error) {
+                showError('Failed to load employee statistics: ' + error.message);
+            }
+        }
+
+        // Display employee statistics
+        function displayEmployeeStats(stats) {
+            const container = document.getElementById('employeeStatsList');
+            
+            if (stats.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fas fa-users text-4xl mb-4"></i>
+                        <p class="text-lg">No employee data found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = stats.map(stat => `
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-user text-blue-500 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-lg font-medium text-gray-900">${stat.name}</h4>
+                                    <p class="text-sm text-gray-600">${stat.role} - ${stat.email}</p>
+                                    <p class="text-xs text-gray-500">
+                                        Joined: ${new Date(stat.created_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-lg font-semibold text-gray-900">
+                                ${stat.total_expenses} expenses
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                Total: ${stat.company_currency} ${parseFloat(stat.total_amount).toFixed(2)}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                Avg: ${stat.company_currency} ${parseFloat(stat.avg_amount).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         // Get status color
         function getStatusColor(status) {
             switch (status) {
@@ -357,7 +448,8 @@ require_once '../includes/auth.php';
             const todayApprovals = approvals.filter(a => new Date(a.created_at).toDateString() === today);
             
             document.getElementById('approvedToday').textContent = '0'; // Would need separate API call
-            document.getElementById('rejectedToday').textContent = '0'; // Would need separate API call
+            document.getElementById('totalEmployees').textContent = '0'; // Would need separate API call
+            document.getElementById('totalExpenses').textContent = '0'; // Would need separate API call
         }
 
         // Open approval modal
@@ -416,10 +508,6 @@ require_once '../includes/auth.php';
                     showSuccess('Expense approved successfully!');
                     closeApprovalModal();
                     loadPendingApprovals();
-                    // Also refresh all expenses if the section is visible
-                    if (!document.getElementById('allExpensesSection').classList.contains('hidden')) {
-                        loadAllExpenses();
-                    }
                 } else {
                     throw new Error(data.error || 'Failed to approve expense');
                 }
@@ -457,10 +545,6 @@ require_once '../includes/auth.php';
                     showSuccess('Expense rejected successfully!');
                     closeApprovalModal();
                     loadPendingApprovals();
-                    // Also refresh all expenses if the section is visible
-                    if (!document.getElementById('allExpensesSection').classList.contains('hidden')) {
-                        loadAllExpenses();
-                    }
                 } else {
                     throw new Error(data.error || 'Failed to reject expense');
                 }

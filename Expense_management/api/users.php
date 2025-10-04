@@ -156,7 +156,7 @@ function handleCreateUser() {
         return;
     }
     
-    if (!in_array($role, ['Admin', 'Manager', 'Employee', 'Finance', 'Director'])) {
+    if (!in_array($role, ['Admin', 'Manager', 'Employee', 'Finance', 'Director', 'HR', 'CFO'])) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid role']);
         return;
@@ -177,7 +177,7 @@ function handleCreateUser() {
         
         // Validate manager if specified
         if ($manager_id) {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND company_id = ? AND role IN ('Manager', 'Admin')");
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND company_id = ? AND role IN ('Manager', 'Admin', 'HR', 'CFO')");
             $stmt->execute([$manager_id, $user['company_id']]);
             if (!$stmt->fetch()) {
                 $pdo->rollback();
@@ -250,7 +250,7 @@ function handleUpdateUser() {
         return;
     }
     
-    if (!in_array($role, ['Admin', 'Manager', 'Employee', 'Finance', 'Director'])) {
+    if (!in_array($role, ['Admin', 'Manager', 'Employee', 'Finance', 'Director', 'HR', 'CFO'])) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid role']);
         return;
@@ -281,7 +281,7 @@ function handleUpdateUser() {
         
         // Validate manager if specified
         if ($manager_id) {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND company_id = ? AND role IN ('Manager', 'Admin')");
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND company_id = ? AND role IN ('Manager', 'Admin', 'HR', 'CFO')");
             $stmt->execute([$manager_id, $user['company_id']]);
             if (!$stmt->fetch()) {
                 $pdo->rollback();

@@ -156,6 +156,24 @@ require_once '../includes/auth.php';
                 </div>
             </div>
         </div>
+
+        <!-- Approval Details Modal -->
+        <div id="approvalDetailsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Expense Approval Details</h3>
+                        <button onclick="closeApprovalDetailsModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="approvalDetailsContent" class="space-y-4">
+                        <!-- Approval details will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Error Alert -->
@@ -258,6 +276,12 @@ require_once '../includes/auth.php';
                             <div class="text-xs text-gray-500">
                                 ${expense.approved_count}/${expense.total_approvals} approvals
                             </div>
+                        </div>
+                        <div class="ml-4 flex space-x-2">
+                            <button onclick="viewApprovalDetails(${expense.id})" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 text-sm">
+                                <i class="fas fa-eye mr-1"></i>View Details
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -438,6 +462,98 @@ require_once '../includes/auth.php';
             setTimeout(() => {
                 document.getElementById('successAlert').classList.add('hidden');
             }, 5000);
+        }
+
+        // View approval details
+        async function viewApprovalDetails(expenseId) {
+            try {
+                const response = await fetch(`/Expense_management/api/expenses.php?action=get&id=${expenseId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayApprovalDetails(data.expense);
+                    document.getElementById('approvalDetailsModal').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load expense details');
+                }
+            } catch (error) {
+                showError('Failed to load approval details: ' + error.message);
+            }
+        }
+
+        // Display approval details
+        function displayApprovalDetails(expense) {
+            const container = document.getElementById('approvalDetailsContent');
+            
+            const approvalSteps = expense.approvals.map(approval => `
+                <div class="flex items-center space-x-4 p-4 border rounded-lg ${getApprovalStepColor(approval.status)}">
+                    <div class="flex-shrink-0">
+                        <i class="fas ${getApprovalIcon(approval.status)} text-lg"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium">${approval.approver_name} (${approval.approver_role})</h4>
+                            <span class="text-xs text-gray-500">Step ${approval.step_order}</span>
+                        </div>
+                        <p class="text-sm text-gray-600">${approval.comments || 'No comments'}</p>
+                        <p class="text-xs text-gray-500">
+                            ${approval.action_time ? new Date(approval.action_time).toLocaleString() : 'Pending'}
+                        </p>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(approval.status)}">
+                            ${approval.status}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="text-lg font-medium text-gray-900 mb-2">Expense Details</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><strong>Category:</strong> ${expense.category}</div>
+                        <div><strong>Amount:</strong> ${expense.original_currency} ${parseFloat(expense.original_amount).toFixed(2)}</div>
+                        <div><strong>Date:</strong> ${new Date(expense.expense_date).toLocaleDateString()}</div>
+                        <div><strong>Status:</strong> <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(expense.status)}">${expense.status}</span></div>
+                        <div class="col-span-2"><strong>Description:</strong> ${expense.description || 'No description'}</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Approval Progress</h4>
+                    <div class="space-y-3">
+                        ${approvalSteps}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Get approval step color
+        function getApprovalStepColor(status) {
+            switch (status) {
+                case 'Approved': return 'bg-green-50 border-green-200';
+                case 'Rejected': return 'bg-red-50 border-red-200';
+                case 'Pending': return 'bg-yellow-50 border-yellow-200';
+                case 'Skipped': return 'bg-gray-50 border-gray-200';
+                default: return 'bg-gray-50 border-gray-200';
+            }
+        }
+
+        // Get approval icon
+        function getApprovalIcon(status) {
+            switch (status) {
+                case 'Approved': return 'fa-check-circle text-green-500';
+                case 'Rejected': return 'fa-times-circle text-red-500';
+                case 'Pending': return 'fa-clock text-yellow-500';
+                case 'Skipped': return 'fa-minus-circle text-gray-500';
+                default: return 'fa-question-circle text-gray-500';
+            }
+        }
+
+        // Close approval details modal
+        function closeApprovalDetailsModal() {
+            document.getElementById('approvalDetailsModal').classList.add('hidden');
         }
 
         // Logout

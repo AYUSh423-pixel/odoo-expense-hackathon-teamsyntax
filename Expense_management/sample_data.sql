@@ -17,6 +17,8 @@ INSERT INTO users (company_id, name, email, password, role, manager_id, is_manag
 (1, 'Sarah Manager', 'sarah@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Manager', 1, 1),
 (1, 'Mike Finance', 'mike@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Finance', 1, 1),
 (1, 'Lisa Director', 'lisa@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Director', 1, 1),
+(1, 'Emma HR', 'emma@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'HR', 1, 1),
+(1, 'David CFO', 'david@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'CFO', 1, 1),
 (1, 'Tom Employee', 'tom@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Employee', 2, 0),
 (1, 'Jane Employee', 'jane@acme.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Employee', 2, 0),
 
@@ -39,10 +41,12 @@ INSERT INTO expenses (company_id, user_id, original_amount, original_currency, c
 
 -- Insert approval sequences for companies
 INSERT INTO approval_sequences (company_id, step_order, approver_type, approver_role) VALUES 
--- ACME Corporation workflow: Manager -> Finance -> Director
+-- ACME Corporation workflow: Manager -> Finance -> Director -> HR -> CFO
 (1, 1, 'MANAGER', NULL),
 (1, 2, 'ROLE', 'Finance'),
 (1, 3, 'ROLE', 'Director'),
+(1, 4, 'ROLE', 'HR'),
+(1, 5, 'ROLE', 'CFO'),
 
 -- TechStart India workflow: Manager -> Finance
 (2, 1, 'MANAGER', NULL),
